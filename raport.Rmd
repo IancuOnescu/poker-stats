@@ -1,0 +1,78 @@
+---
+title: "Raport"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+**TODO:** Chestia asta o sa trebuiasca scrisa cat de cat formal banuiesc
+
+## Procesare dataset
+Dataset-ul initial contine 10 milioane de maini din jocuri de poker in format text. Pentru convenienta am transformat toate fisierele in format `feather` aplicand urmatorii pasi:
+
+* `decompress.py` contine codul pentru dezarhivarea fisierelor
+* `parse.py` contine codul pentru transformarea din text in CSV
+* Creem structura directorului de iesire
+```bash
+find parsed_data -type d > dirs.txt
+sed -i 's/parsed_data/dataframes/g' dirs.txt
+xargs mkdir -p < dirs.txt
+rm -f dirs.txt
+```
+* Pentru transformarea din CSV in Feather am utilizat urmatorul cod R:
+```{r eval=FALSE}
+library(pbapply)
+library(parallel)
+library(feather)
+
+convert_csv_to_feather = function (path) {
+  # output dir must exist!
+  # it is assumed that they have the same structure
+  INPUT_DIR_NAME  = "parsed_data"
+  OUTPUT_DIR_NAME = "dataframes"
+  
+  csvs = list.files(path, pattern = "*.csv", 
+                     recursive = TRUE, full.names = TRUE)
+  
+  cl = makeForkCluster(nnodes = 12)
+  pblapply(csvs, function(name) {
+    df = read.csv(name)
+    
+    outname = gsub(INPUT_DIR_NAME, OUTPUT_DIR_NAME, name)
+    outname = gsub("\\.csv", ".feather", outname)
+    write_feather(df, outname)
+  }, cl = cl)
+}
+
+convert_csv_to_feather("./parsed_data")
+```
+
+## Repartitie castiguri (draft)
+
+```{r eval=FALSE}
+library(pbapply)
+library(parallel)
+library(feather)
+
+# Creeaza un pool de 12 procese
+cl = makeForkCluster(nnodes = 12)
+
+# Lista cu toate pdb-urile
+frames = list.files("../dataframes", pattern = "pdb.*.feather",
+                    full.names = TRUE, recursive = TRUE)
+
+# apply paralel cu progress bar
+# ruleaza pe pool-ul declarat mai sus
+datas = pblapply(frames, function(frame) {
+  # incarca un feather, doar o parte din coloane
+  df = read_feather(frame, 
+          columns = c("p_name", "p_bankroll", "p_pot_sz", "win"))
+}, cl = cl)
+
+# facem merge la toate dataset-urile incarcate
+# (asta ar trebui salvat separat probabil, ca sa
+# nu reincarci de fiecare data)
+data = do.call(rbind, datas)
+```

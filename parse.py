@@ -4,21 +4,11 @@ from re import split
 import csv
 
 def parse_game(game_name):
-    print (f"[i] Parsing game {game_name}")
+    #print (f"[i] Parsing game {game_name}")
     path = f"data/{game_name}"
     hdb = open(f"{path}/hdb", "r")
     roster = open(f"{path}/hroster", "r")
-
     opath = f"parsed_data/{game_name}"
-    try:
-        mkdir(opath)
-    except:
-        pass
-    try:
-        mkdir(f"{opath}/pdb")
-    except:
-        pass
-
 
     with open(f"{opath}/hdb.csv", "w") as f:
         writer = csv.writer(f, delimiter=',')
@@ -57,6 +47,7 @@ def parse_roster(roster, out):
     header = ['timestamp', 'n_p', 'players']
     players_idx = header.index('players')
 
+    out.writerow(header)
     for line in roster:
         line = splitter(line)
         line = [*line[:players_idx], ' '.join(line[players_idx:])]
@@ -69,11 +60,16 @@ def parse_player_db(pdb, out):
             ]
     cards_idx = header.index('cards')
 
+    out.writerow(header)
     for line in pdb:
         line = splitter(line)
         line = [*line[:cards_idx], ' '.join(line[cards_idx:])]
         out.writerow(line)
 
+to_process = []
+
+try: mkdir("parsed_data")
+except: pass
 for d in listdir("data"):
     try: mkdir(f"parsed_data/{d}")
     except: pass
@@ -81,6 +77,20 @@ for d in listdir("data"):
     for dp in listdir(f"data/{d}"):
         try: mkdir(f"parsed_data/{d}/{dp}")
         except: pass
+        try: mkdir(f"parsed_data/{d}/{dp}/pdb")
+        except: pass
 
-        try: parse_game(f"{d}/{dp}")
-        except Exception as e: print (f"[-] Error: {e}")
+        to_process.append(f"{d}/{dp}")
+
+from multiprocessing import Pool
+
+def worker(arg):
+    i, v = arg
+    #print (f"[i] Processing {v} {i+1}/{len(to_process)}")
+    try: parse_game(v)
+    except Exception as e: print (f"[-] Error processing {v} {i+1}/{len(to_process)}: {e}")
+    print (f"[+] Done {v} {i+1}/{len(to_process)}")
+
+with Pool(processes = 15) as pool:
+    pool.map(worker, list(enumerate(to_process)))
+
