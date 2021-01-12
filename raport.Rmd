@@ -43,14 +43,14 @@ convert_csv_to_feather = function (path) {
     outname = gsub(INPUT_DIR_NAME, OUTPUT_DIR_NAME, name)
     outname = gsub("\\.csv", ".feather", outname)
     write_feather(df, outname)
+    return ();
   }, cl = cl)
 }
 
 convert_csv_to_feather("./parsed_data")
 ```
 
-## Repartitie castiguri (draft)
-
+* Creem un singur fisier doar pentru castiguri pentru a evita procesari multiple inutile:
 ```{r eval=FALSE}
 library(pbapply)
 library(parallel)
@@ -60,19 +60,131 @@ library(feather)
 cl = makeForkCluster(nnodes = 12)
 
 # Lista cu toate pdb-urile
-frames = list.files("../dataframes", pattern = "pdb.*.feather",
+frames = list.files("./dataframes", pattern = "pdb.*.feather",
                     full.names = TRUE, recursive = TRUE)
 
 # apply paralel cu progress bar
 # ruleaza pe pool-ul declarat mai sus
-datas = pblapply(frames, function(frame) {
+all_dataframes = pblapply(frames, function(frame) {
   # incarca un feather, doar o parte din coloane
   df = read_feather(frame, 
-          columns = c("p_name", "p_bankroll", "p_pot_sz", "win"))
+          columns = c(
+            "timestamp", 
+            "p_name", 
+            "p_bankroll", 
+            "p_pot_sz", 
+            "win"))
 }, cl = cl)
 
-# facem merge la toate dataset-urile incarcate
-# (asta ar trebui salvat separat probabil, ca sa
-# nu reincarci de fiecare data)
-data = do.call(rbind, datas)
+# Toate mainile intr-un singur fisier
+data = rbindlist(all_dataframes)
+write_feather(data, "./dataframes/all_hands.feather")
+
+rm(frames)
+rm(cl)
+rm(all_dataframes)
+rm(data)
+gc()
+```
+
+## Repartitie castiguri (draft)
+
+```{r eval=FALSE}
+library(feather)
+library(tibble)
+library(data.table)
+library(dplyr)
+
+# Incarca mainile
+data = read_feather("./dataframes/all_hands.feather")
+# Jucatori unici
+names_cnt = length(distinct(data, p_name)$p_name)
+# Maini per jucator
+freq_names = data.frame(table(data$p_name))
+colnames(freq_names) = c("p_name", "hands")
+# Aprx. 9k jucatori au jucat majoritatea mainilor
+top = arrange(freq_names, desc(hands))
+
+# --- Distributie castiguri ---
+# Cel mai activ jucator de pe server
+player_data = filter(data, p_name == "r00lbot")
+
+# !!! Maxim bulaneala
+# Din necunoscute motive cand se salveaza DF-ul, numerele
+# devin "factors" (ceva metoda dubioasa de a stoca stringuri)
+# Asa ca trebuie convertite inapoi la numere
+factor_to_int = function (x) { as.numeric(as.character(x)) }
+
+# Profit net jucator
+get_net_profit = function (df) {factor_to_int(df$win) - factor_to_int(df$p_pot_sz) } 
+
+# Frecventele castigurilor
+profit = get_net_profit(player_data)
+df = data.frame(table(profit))
+colnames(df) = c("profit", "freq")
+# Filtram valori invalide (incredibil de negative)
+df = filter(df, factor_to_int(profit) > -50000)
+
+# Aici incercaram sa facem capping la frecvente. N-a mers
+#df2 = mutate(df, freq_cap = ifelse(freq <= 100, freq, 100))
+#obs = rep(as.numeric(as.character(df2$profit)), df2$freq_cap)
+
+# Alte bulaneli de filtrari pe care le-am incercat
+#profit = profit[profit >= -1000]
+#profit = profit[profit <= 1000]
+#profit = profit[profit != 0]
+#profit = profit[(profit <= -11) | (profit > 0)]
+
+# Histograma frecventa profituri
+# Pe normala nu se intelege nimic
+# Pe logaritmica arata a distributie normala pe grafic normal
+obs = profit[profit > -1000 & profit < 1000]# & profit != 0]
+obs.hist = hist(obs, plot=F, breaks = 50)
+obs.hist$counts = log10(obs.hist$counts+1)
+plot(obs.hist, ylab='log10(Frequency)')
+
+# Daca vrei sa logaritmezi dataset-ul trebuie sa n-ai 0-uri
+# Si nici negative!!!
+
+# Am incercat sa facem o normala logaritmica, dar nu se
+# vede pe grafice
+curve(dlnorm(x, meanlog=log10(mean(obs)), sdlog=log10(sd(obs)), col="darkblue", lwd=2)
+
+# In articolul de pe QuantitativePoker baiatu ala vorbeste
+# despre folosirea unei distributii empirice ca sa ploteze
+# datele. In cazul lui i-a iesit o distributie normala.
+# Noua ne-a iesit un big spike :P
+      
+library(EnvStats)
+# Quantile, cat de fin e graficu
+x <- qemp(p = seq(0, 1, len = 10000), obs = obs)
+# demp -> empiric density function
+y <- log10(demp(x, obs))
+
+# mare plot empiric
+plot(x, y, type = "n", 
+     xlab = "Value of Random Variable", 
+     ylab = "Relative Frequency") 
+lines(x, y, lwd = 2, col = "cyan") 
+
+hist(profit, freq = FALSE,
+     ylab = "Relative Frequency")
+```
+
+## Legea lui Benford
+
+```{r eval=FALSE}
+library(benford.analysis)
+
+# Toate astea par sa respecte legea lui Benford
+bf1 = benford(factor_to_int(data$p_pot_sz), number.of.digits = 1)
+bf2 = benford(factor_to_int(data$p_bankroll), number.of.digits = 1)
+bf3 = benford(factor_to_int(data$win), number.of.digits = 1)
+
+dev.new()
+plot(bf1)
+dev.new()
+plot(bf2)
+dev.new()
+plot(bf3)
 ```
