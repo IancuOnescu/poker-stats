@@ -125,35 +125,46 @@ colnames(df) = c("profit", "freq")
 # Filtram valori invalide (incredibil de negative)
 df = filter(df, factor_to_int(profit) > -50000)
 
-# Aici incercaram sa facem capping la frecvente. N-a mers
-#df2 = mutate(df, freq_cap = ifelse(freq <= 100, freq, 100))
-#obs = rep(as.numeric(as.character(df2$profit)), df2$freq_cap)
+sums = (1:10^5)
+#din cele 300k maini extragem cu intoarcere 10^5 sample-uri si facm suma pentru lungimea mainilor
+sample_hands = function(hand_length, obs){
+  x = 10^5
+  samps = replicate(x, sample(obs, hand_length, replace = TRUE))
+  sums = colSums(samps, na.rm = TRUE)
+  #safety is number one priority
+  gc()
+  #safety is number one priority
+  rm(samps)
+  return (sums)
+}
 
-# Alte bulaneli de filtrari pe care le-am incercat
-#profit = profit[profit >= -1000]
-#profit = profit[profit <= 1000]
-#profit = profit[profit != 0]
-#profit = profit[(profit <= -11) | (profit > 0)]
+#functie care afiseaza frumos giugiuc pentru numarul de maini si dimneiunea binurilor
 
-# Histograma frecventa profituri
-# Pe normala nu se intelege nimic
-# Pe logaritmica arata a distributie normala pe grafic normal
-obs = profit[profit > -1000 & profit < 1000]# & profit != 0]
-obs.hist = hist(obs, plot=F, breaks = 50)
-obs.hist$counts = log10(obs.hist$counts+1)
-plot(obs.hist, ylab='log10(Frequency)')
+### TO DO -> sa afiseze si mai giugiuc
 
-# Daca vrei sa logaritmezi dataset-ul trebuie sa n-ai 0-uri
-# Si nici negative!!!
+plot_hands = function(no_of_hands, bks){
+  #create sample poll
+  hands = sample_hands(no_of_hands, profit)
+  #create histogram
+  hands.hist = hist(hands, breaks = bks)
+  hands.hist$counts = hands.hist$counts/sum(hands.hist$counts) 
+  plot(hands.hist)
+  
+  #create the distribution
+  xfit <- seq(min(hands), max(hands), length = length(hands))
+  yfit <- dnorm(xfit, mean = mean(hands), sd = sd(hands))
+  yfit <- yfit * (hands.hist$counts / hands.hist$density)[1]
+  
+  #add it to the histogram for comparisson
+  lines(xfit, yfit, col = "darkblue", lwd = 2)
+}
 
-# Am incercat sa facem o normala logaritmica, dar nu se
-# vede pe grafice
-curve(dlnorm(x, meanlog=log10(mean(obs)), sdlog=log10(sd(obs)), col="darkblue", lwd=2)
+plot_hands(10, 100)
+plot_hands(100, 100)
+plot_hands(1000, 75)
 
-# In articolul de pe QuantitativePoker baiatu ala vorbeste
-# despre folosirea unei distributii empirice ca sa ploteze
-# datele. In cazul lui i-a iesit o distributie normala.
-# Noua ne-a iesit un big spike :P
+### TO DO -> de optimizat ca sa putem plota pe dimeniuni mai mari
+plot_hands(100000, 200)
       
 library(EnvStats)
 # Quantile, cat de fin e graficu
