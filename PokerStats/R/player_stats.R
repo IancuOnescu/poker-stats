@@ -32,11 +32,32 @@ plot_hands_distr = function(profit, hand_counts, bks, title){
   lines(xfit, yfit, col = "darkblue", lwd = 2)
 }
 
-plot_player_distr = function(df, player, hands = 1000, bks = 75) {
-  pdata = player_hands(data, player)
+plot_player_distr = function(df, player, hands = 1000, bks = 75,
+                             prefiltered = FALSE) {
+  pdata = NULL
+  if (prefiltered) {
+    pdata = df
+  } else {
+    pdata = player_hands(df, player)
+  }
+
   pprofit = get_net_profit(pdata)
 
   plot_hands_distr(pprofit, hands, bks,
                    sprintf("Sample distribution of %d hands from %s",
                            hands, player))
+}
+
+plot_bankroll = function(pdata, player) {
+  pdata = arrange(pdata, factor_to_int(timestamp))
+  pdata = mutate(pdata, win = factor_to_int(win))
+  pdata = mutate(pdata, p_pot_sz = factor_to_int(p_pot_sz))
+  pdata = mutate(pdata, profit = win - p_pot_sz)
+  pdata$profit = cumsum(pdata$profit)
+
+  x = anytime(factor_to_int(pdata$timestamp))
+  y = factor_to_int(pdata$profit)
+
+  plot(x, y, type="l",
+       main = sprintf("Bankroll of %s", player))
 }

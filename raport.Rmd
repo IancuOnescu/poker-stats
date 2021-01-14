@@ -47,15 +47,24 @@ gc()
 library(PokerStats)
 library(feather)
 library(tictoc)
+library(dplyr)
 
 data = read_feather("./dataframes/all_hands.feather")
 plist = players_list(data)
 pfreq = player_hands_freq(data)
 pstat = player_hands_stats(pfreq)
 
-for (i in seq(10)) {
+fpfreq = filter(pfreq, hands >= 10000)
+
+#pdata = filter(data, p_name == "lurker")
+#plot_bankroll(pdata)
+
+for (i in sample(1:length(fpfreq$p_name), 15)) {
   tic(sprintf("Evaluate player %d", i))
-  plot_player_distr(data, as.character(pfreq$p_name[i]), 10000)
+  pdata = filter(data, p_name == fpfreq$p_name[i])
+  plot_player_distr(pdata, as.character(fpfreq$p_name[i]), 10000,
+                    prefiltered = TRUE)
+  plot_bankroll(pdata, as.character(pfreq$p_name[i]))
   toc()
 }
 ```
