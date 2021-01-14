@@ -21,165 +21,43 @@ sed -i 's/parsed_data/dataframes/g' dirs.txt
 xargs mkdir -p < dirs.txt
 rm -f dirs.txt
 ```
-* Pentru transformarea din CSV in Feather am utilizat urmatorul cod R:
+* Pentru transformarea din CSV in Feather am utilizat urmatorul cod R din pachetul nostru `PokerStats`:
 ```{r eval=FALSE}
-library(pbapply)
-library(parallel)
-library(feather)
-
-convert_csv_to_feather = function (path) {
-  # output dir must exist!
-  # it is assumed that they have the same structure
-  INPUT_DIR_NAME  = "parsed_data"
-  OUTPUT_DIR_NAME = "dataframes"
-  
-  csvs = list.files(path, pattern = "*.csv", 
-                     recursive = TRUE, full.names = TRUE)
-  
-  cl = makeForkCluster(nnodes = 12)
-  pblapply(csvs, function(name) {
-    df = read.csv(name)
-    
-    outname = gsub(INPUT_DIR_NAME, OUTPUT_DIR_NAME, name)
-    outname = gsub("\\.csv", ".feather", outname)
-    write_feather(df, outname)
-    return ();
-  }, cl = cl)
-}
-
-convert_csv_to_feather("./parsed_data")
+library(PokerStats)
+convert_all_csvs_to_feather("./parsed_data")
 ```
 
 * Creem un singur fisier doar pentru castiguri pentru a evita procesari multiple inutile:
 ```{r eval=FALSE}
-library(pbapply)
-library(parallel)
+library(PokerStats)
 library(feather)
 
-# Creeaza un pool de 12 procese
-cl = makeForkCluster(nnodes = 12)
-
-# Lista cu toate pdb-urile
-frames = list.files("./dataframes", pattern = "pdb.*.feather",
-                    full.names = TRUE, recursive = TRUE)
-
-# apply paralel cu progress bar
-# ruleaza pe pool-ul declarat mai sus
-all_dataframes = pblapply(frames, function(frame) {
-  # incarca un feather, doar o parte din coloane
-  df = read_feather(frame, 
-          columns = c(
-            "timestamp", 
-            "p_name", 
-            "p_bankroll", 
-            "p_pot_sz", 
-            "win"))
-}, cl = cl)
-
-# Toate mainile intr-un singur fisier
-data = rbindlist(all_dataframes)
+pdbs = load_pdbs("./dataframes")
+data = rbindlist(pdbs)
 write_feather(data, "./dataframes/all_hands.feather")
 
-rm(frames)
-rm(cl)
-rm(all_dataframes)
+rm(pdbs)
 rm(data)
 gc()
 ```
 
 ## Repartitie castiguri (draft)
 
-```{r eval=FALSE}
+```{r eval=TRUE, cache=TRUE}
+library(PokerStats)
 library(feather)
-library(tibble)
-library(data.table)
-library(dplyr)
+library(tictoc)
 
-# Incarca mainile
 data = read_feather("./dataframes/all_hands.feather")
-# Jucatori unici
-names_cnt = length(distinct(data, p_name)$p_name)
-# Maini per jucator
-freq_names = data.frame(table(data$p_name))
-colnames(freq_names) = c("p_name", "hands")
-# Aprx. 9k jucatori au jucat majoritatea mainilor
-top = arrange(freq_names, desc(hands))
+plist = players_list(data)
+pfreq = player_hands_freq(data)
+pstat = player_hands_stats(pfreq)
 
-# --- Distributie castiguri ---
-# Cel mai activ jucator de pe server
-player_data = filter(data, p_name == "r00lbot")
-
-# !!! Maxim bulaneala
-# Din necunoscute motive cand se salveaza DF-ul, numerele
-# devin "factors" (ceva metoda dubioasa de a stoca stringuri)
-# Asa ca trebuie convertite inapoi la numere
-factor_to_int = function (x) { as.numeric(as.character(x)) }
-
-# Profit net jucator
-get_net_profit = function (df) {factor_to_int(df$win) - factor_to_int(df$p_pot_sz) } 
-
-# Frecventele castigurilor
-profit = get_net_profit(player_data)
-df = data.frame(table(profit))
-colnames(df) = c("profit", "freq")
-# Filtram valori invalide (incredibil de negative)
-df = filter(df, factor_to_int(profit) > -50000)
-
-sums = (1:10^5)
-#din cele 300k maini extragem cu intoarcere 10^5 sample-uri si facm suma pentru lungimea mainilor
-sample_hands = function(hand_length, obs){
-  x = 10^5
-  samps = replicate(x, sample(obs, hand_length, replace = TRUE))
-  sums = colSums(samps, na.rm = TRUE)
-  #safety is number one priority
-  gc()
-  #safety is number one priority
-  rm(samps)
-  return (sums)
+for (i in seq(10)) {
+  tic(sprintf("Evaluate player %d", i))
+  plot_player_distr(data, as.character(pfreq$p_name[i]), 10000)
+  toc()
 }
-
-#functie care afiseaza frumos giugiuc pentru numarul de maini si dimneiunea binurilor
-
-### TO DO -> sa afiseze si mai giugiuc
-
-plot_hands = function(no_of_hands, bks){
-  #create sample poll
-  hands = sample_hands(no_of_hands, profit)
-  #create histogram
-  hands.hist = hist(hands, breaks = bks)
-  hands.hist$counts = hands.hist$counts/sum(hands.hist$counts) 
-  plot(hands.hist)
-  
-  #create the distribution
-  xfit <- seq(min(hands), max(hands), length = length(hands))
-  yfit <- dnorm(xfit, mean = mean(hands), sd = sd(hands))
-  yfit <- yfit * (hands.hist$counts / hands.hist$density)[1]
-  
-  #add it to the histogram for comparisson
-  lines(xfit, yfit, col = "darkblue", lwd = 2)
-}
-
-plot_hands(10, 100)
-plot_hands(100, 100)
-plot_hands(1000, 75)
-
-### TO DO -> de optimizat ca sa putem plota pe dimeniuni mai mari
-plot_hands(100000, 200)
-      
-library(EnvStats)
-# Quantile, cat de fin e graficu
-x <- qemp(p = seq(0, 1, len = 10000), obs = obs)
-# demp -> empiric density function
-y <- log10(demp(x, obs))
-
-# mare plot empiric
-plot(x, y, type = "n", 
-     xlab = "Value of Random Variable", 
-     ylab = "Relative Frequency") 
-lines(x, y, lwd = 2, col = "cyan") 
-
-hist(profit, freq = FALSE,
-     ylab = "Relative Frequency")
 ```
 
 ## Legea lui Benford
