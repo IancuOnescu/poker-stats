@@ -32,7 +32,8 @@ load_pdbs = function(path = "./dataframes") {
                         "p_name",
                         "p_bankroll",
                         "p_pot_sz",
-                        "win"))
+                        "win",
+                        "cards"))
   }, cl = cl)
   stopCluster(cl)
 
