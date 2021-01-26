@@ -62,14 +62,72 @@ fpfreq = filter(pfreq, hands >= 10000)
 #pdata = filter(data, p_name == "lurker")
 #plot_bankroll(pdata)
 
-for (i in sample(1:length(fpfreq$p_name), 15)) {
+p_name = list()
+hands_cnt = list()
+bankroll_file = list()
+dist1e2_file = list()
+dist1e3_file = list()
+dist1e4_file = list()
+
+plot_distr_and_store = function (i, hands) {
+  plot_player_distr(pdata, as.character(fpfreq$p_name[i]), hands,
+                    prefiltered = TRUE)
+  phist = recordPlot()
+  plot.new()
+  return (phist)
+}
+
+plot_bankroll_and_store = function(i) {
+  plot_bankroll(pdata, as.character(pfreq$p_name[i]))
+  pbank = recordPlot()
+  plot.new()
+  return (pbank)
+}
+
+for (i in 1:50) {
   tic(sprintf("Evaluate player %d", i))
   pdata = filter(data, p_name == fpfreq$p_name[i])
-  plot_player_distr(pdata, as.character(fpfreq$p_name[i]), 10000,
-                    prefiltered = TRUE)
-  plot_bankroll(pdata, as.character(pfreq$p_name[i]))
+  phist1e2 = plot_distr_and_store(i, 1e2)
+  phist1e3 = plot_distr_and_store(i, 1e3)
+  phist1e4 = plot_distr_and_store(i, 1e4)
+  pbank = plot_bankroll_and_store(i)
+  
+  p_name = append(p_name, as.character(fpfreq$p_name[i]))
+  hands_cnt = append(hands_cnt, length(pdata$timestamp))
+  
+  f = sprintf("bankroll_%s.rds", fpfreq$p_name[i])
+  saveRDS(pbank, f)
+  bankroll_file = append(bankroll_file, f)
+  
+  f = sprintf("distr_1e2_%s.rds", fpfreq$p_name[i])
+  saveRDS(phist1e2, f)
+  dist1e2_file = append(dist1e2_file, f)
+  
+  f = sprintf("distr_1e3_%s.rds", fpfreq$p_name[i])
+  saveRDS(phist1e3, f)
+  dist1e3_file = append(dist1e3_file, f)
+  
+  f = sprintf("distr_1e4_%s.rds", fpfreq$p_name[i])
+  saveRDS(phist1e4, f)
+  dist1e4_file = append(dist1e4_file, f)
+  
   toc()
+  gc()
 }
+
+dfp = data.frame(unlist(p_name), 
+                 unlist(hands_cnt), 
+                 unlist(bankroll_file),
+                 unlist(dist1e2_file),
+                 unlist(dist1e3_file),
+                 unlist(dist1e4_file))
+colnames(dfp) = c("p_name",
+                  "hands_cnt",
+                  "bankroll_file",
+                  "dist1e2_file",
+                  "dist1e3_file",
+                  "dist1e4_file")
+write_feather(dfp, "outcomes_and_bankrolls.feather")
 ```
 
 ## Legea lui Benford
@@ -123,4 +181,10 @@ for (i in 1:3) {
 dfbf = data.frame(unlist(var_name), unlist(digits), unlist(filename))
 colnames(dfbf) = c("var_name", "digits", "filename")
 write_feather(dfbf, "benford_index.feather")
+
+data = readRDS("./dataframes/benford/pot_size_1.rds")
+
+rm(bf1); rm(bf2); rm(bf3);
+rm(dfbf); rm(digits); rm(filename); rm(var_name);
+gc()
 ```

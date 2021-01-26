@@ -23,7 +23,11 @@ plot_hands_distr = function(profit, hand_counts, bks, title){
 
   hands.hist = hist(hands, breaks = bks, plot = FALSE)
   hands.hist$counts = hands.hist$counts/sum(hands.hist$counts)
-  plot(hands.hist, main = title)
+  plot(hands.hist, main = title,
+       xlab = "Outcome in $", ylab = "Relative Frequency")
+  mtext(sprintf("All hands: %d\nMean: %.2f$\nSD: %.2f$",
+                length(profit), mean(hands), sd(hands)),
+        side=4, adj = 1, las = 1)
 
   xfit <- seq(min(hands), max(hands), length = length(hands))
   yfit <- dnorm(xfit, mean = mean(hands), sd = sd(hands))
@@ -59,5 +63,6 @@ plot_bankroll = function(pdata, player) {
   y = factor_to_int(pdata$profit)
 
   plot(x, y, type="l",
-       main = sprintf("Bankroll of %s", player))
+       main = sprintf("Bankroll of %s", player),
+       xlab = "Timeline", ylab = "Amount of $")
 }
