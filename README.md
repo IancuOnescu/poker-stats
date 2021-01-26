@@ -14,7 +14,8 @@ R with shiny framework & Python
 ## processed data
 #### dataset in feather format: https://drive.google.com/file/d/1vaRp8OQNhBzNfhT_Ifz52yR9vKN78J6P/view?usp=sharing
 #### dataset in feather format (all players' hands in one file): https://drive.google.com/file/d/1rnSG97ezJrM6Mlssm7lN0oQG_XPeLvob/view?usp=sharing
-### benford results: https://drive.google.com/file/d/1PyTiMPdRXvaJ0KgpEMPwroefhV3eNdEL/view?usp=sharing
+#### benford results: https://drive.google.com/file/d/1PyTiMPdRXvaJ0KgpEMPwroefhV3eNdEL/view?usp=sharing
+#### outcomes distribution and bankrolls: https://drive.google.com/file/d/1Fw067A-DOyXvvk1BPnP72MCPww_OoL2R/view?usp=sharing
 
 ## parser:
 The parser was made using python
