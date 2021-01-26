@@ -31,10 +31,13 @@ convert_all_csvs_to_feather("./parsed_data")
 ```{r eval=FALSE}
 library(PokerStats)
 library(feather)
+library(tictoc)
 
+tic("Compile all datasets into one")
 pdbs = load_pdbs("./dataframes")
 data = rbindlist(pdbs)
 write_feather(data, "./dataframes/all_hands.feather")
+toc()
 
 rm(pdbs)
 rm(data)
@@ -73,16 +76,51 @@ for (i in sample(1:length(fpfreq$p_name), 15)) {
 
 ```{r eval=FALSE}
 library(benford.analysis)
+library(tictoc)
 
-# Toate astea par sa respecte legea lui Benford
-bf1 = benford(factor_to_int(data$p_pot_sz), number.of.digits = 1)
-bf2 = benford(factor_to_int(data$p_bankroll), number.of.digits = 1)
-bf3 = benford(factor_to_int(data$win), number.of.digits = 1)
+var_name = list()
+digits = list()
+filename = list()
 
-dev.new()
-plot(bf1)
-dev.new()
-plot(bf2)
-dev.new()
-plot(bf3)
+j = 1
+for (i in 1:3) {
+  tic(paste("Benford pot size - digits", i))
+  bf1 = benford(factor_to_int(data$p_pot_sz), number.of.digits = i)
+  bf1$data = NULL
+  fname = paste("pot_size_", j, ".rds", sep = "")
+  saveRDS(bf1, file = fname)
+  gc()
+  toc()
+  var_name = append(var_name, "pot_size")
+  digits = append(digits, i)
+  filename = append(filename, fname)
+  j=j+1
+  
+  tic(paste("Benford bankroll - digits", i))
+  bf2 = benford(factor_to_int(data$p_bankroll), number.of.digits = i)
+  bf2$data = NULL
+  fname = paste("bankroll_", j, ".rds", sep = "")
+  saveRDS(bf2, file = fname)
+  gc()
+  toc()
+  var_name = append(var_name, "bankroll")
+  digits = append(digits, i)
+  filename = append(filename, fname)
+  j=j+1
+  
+  tic(paste("Benford win - digits", i))
+  bf3 = benford(factor_to_int(data$win), number.of.digits = i)
+  bf3$data = NULL
+  fname = paste("win_", j, ".rds", sep = "")
+  saveRDS(bf3, file = fname)
+  gc()
+  toc()
+  var_name = append(var_name, "win_")
+  digits = append(digits, i)
+  filename = append(filename, fname)
+  j=j+1
+}
+dfbf = data.frame(unlist(var_name), unlist(digits), unlist(filename))
+colnames(dfbf) = c("var_name", "digits", "filename")
+write_feather(dfbf, "benford_index.feather")
 ```
