@@ -1,0 +1,18 @@
+* {
+  box-sizing: border-box;
+}
+
+.logo {
+  margin-right: 1rem;
+  height: 3rem;
+}
+
+.nav--titlebox {
+  position: relative;
+  top: -3px;
+}
+
+.nav--title__font {
+  font-family: 'Russo One', sans-serif;
+  font-size: 2rem;
+}

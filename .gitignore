@@ -44,4 +44,5 @@ dataframes/
 parsed_data/
 raw_data/
 .feather
+rsconnect/
 
