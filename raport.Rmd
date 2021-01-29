@@ -62,6 +62,10 @@ fpfreq = filter(pfreq, hands >= 10000)
 #pdata = filter(data, p_name == "lurker")
 #plot_bankroll(pdata)
 
+#testing
+pdata = filter(data, p_name == fpfreq$p_name[1])
+plot_top_hands(pdata, fpfreq$p_name[1], 7)
+
 p_name = list()
 hands_cnt = list()
 bankroll_file = list()

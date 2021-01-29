@@ -18,6 +18,30 @@ sample_hands = function(obs, count){
               na.rm = TRUE))
 }
 
+filter_handset = function(pcards, filter_suited){
+  local = vector()
+  for(i in seq(1, length(pcards)/4, by=4)){
+    are_suited = pcards[i+1] == pcards[i+3]
+    if(are_suited == filter_suited){
+      local = c(local, c(min(pcards[i], pcards[i+2]), max(pcards[i], pcards[i+2])))
+    }
+  }
+  return (local)
+}
+
+piechart_top_hands = function(hands, player, n_hands){
+  hands.table = table(as.character(interaction(hands, sep = " ")))
+  hands.table = hands.table[order(hands.table, decreasing = TRUE)]
+
+  hand.names = names(hands.table)[1:n_hands]
+  hand.counts = as.numeric(hands.table)[1:n_hands]
+
+  pct = round(hand.counts/sum(hand.counts)*100)
+  hand.names = paste(hand.names, pct)
+  hand.names = paste(hand.names, "%", sep="")
+  pie3D(hand.counts, labels = hand.names, explode=0.1, col = rainbow(length(hand.names)), main = c("Top winning hands of ", player), labelcex = 0.95)
+}
+
 plot_hands_distr = function(profit, hand_counts, bks, title){
   hands = sample_hands(profit, hand_counts)
 
@@ -65,4 +89,24 @@ plot_bankroll = function(pdata, player) {
   plot(x, y, type="l",
        main = sprintf("Bankroll of %s", player),
        xlab = "Timeline", ylab = "Amount of $")
+}
+
+plot_top_hands = function(pdata, player, n_hands) {
+  pcards = filter(pdata, win != 0)
+  pcards = as.character(filter(pcards, cards != "")$cards)
+  pcards = unlist(strsplit(unlist(strsplit(pcards, " ")), ""))
+
+  suited_hands = filter_handset(pcards, filter_suited = TRUE)
+  sh_length = length(suited_hands)
+
+  offsuit_hands = filter_handset(pcards, filter_suited = FALSE)
+  oh_length = length(offsuit_hands)
+
+  suited_hands.df = data.frame(suited_hands[seq(sh_length) %% 2 == 1], suited_hands[seq(sh_length) %% 2 == 0], rep("suited", sh_length/2))
+  colnames(suited_hands.df) = c("first card", "second card", "type")
+  offsuit_hands.df = data.frame(offsuit_hands[seq(oh_length) %% 2 == 1], offsuit_hands[seq(oh_length) %% 2 == 0], rep("offsuit", oh_length/2))
+  colnames(offsuit_hands.df) = c("first card", "second card", "type")
+
+  hands = rbind(suited_hands.df, offsuit_hands.df)
+  piechart_top_hands(hands, player, n_hands)
 }
