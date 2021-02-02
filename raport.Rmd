@@ -62,16 +62,15 @@ fpfreq = filter(pfreq, hands >= 10000)
 #pdata = filter(data, p_name == "lurker")
 #plot_bankroll(pdata)
 
-#testing
-pdata = filter(data, p_name == fpfreq$p_name[1])
-plot_top_hands(pdata, fpfreq$p_name[1], 7)
-
 p_name = list()
 hands_cnt = list()
 bankroll_file = list()
 dist1e2_file = list()
 dist1e3_file = list()
 dist1e4_file = list()
+pthlist5_file = list()
+pthlist10_file = list()
+pthlist15_file = list()
 
 plot_distr_and_store = function (i, hands) {
   plot_player_distr(pdata, as.character(fpfreq$p_name[i]), hands,
@@ -88,6 +87,13 @@ plot_bankroll_and_store = function(i) {
   return (pbank)
 }
 
+plot_top_hands_and_store = function(i, hands) {
+  plot_top_hands(pdata, as.character(pfreq$p_name[i]), hands)
+  pthlist = recordPlot()
+  plot.new()
+  return (pthlist)
+}
+
 for (i in 1:50) {
   tic(sprintf("Evaluate player %d", i))
   pdata = filter(data, p_name == fpfreq$p_name[i])
@@ -95,6 +101,9 @@ for (i in 1:50) {
   phist1e3 = plot_distr_and_store(i, 1e3)
   phist1e4 = plot_distr_and_store(i, 1e4)
   pbank = plot_bankroll_and_store(i)
+  pthlist5 = plot_top_hands_and_store(i, 5)
+  pthlist10 = plot_top_hands_and_store(i, 10)
+  pthlist15 = plot_top_hands_and_store(i, 15)
   
   p_name = append(p_name, as.character(fpfreq$p_name[i]))
   hands_cnt = append(hands_cnt, length(pdata$timestamp))
@@ -115,6 +124,18 @@ for (i in 1:50) {
   saveRDS(phist1e4, f)
   dist1e4_file = append(dist1e4_file, f)
   
+  f = sprintf("top_hands_5_%s.rds", fpfreq$p_name[i])
+  saveRDS(pthlist5, f)
+  thlist5_file = append(pthlist5_file, f)
+  
+  f = sprintf("top_hands_10_%s.rds", fpfreq$p_name[i])
+  saveRDS(pthlist10, f)
+  thlist10_file = append(pthlist10_file, f)
+  
+  f = sprintf("top_hands_15_%s.rds", fpfreq$p_name[i])
+  saveRDS(pthlist15, f)
+  thlist15_file = append(pthlist15_file, f)
+  
   toc()
   gc()
 }
@@ -124,14 +145,20 @@ dfp = data.frame(unlist(p_name),
                  unlist(bankroll_file),
                  unlist(dist1e2_file),
                  unlist(dist1e3_file),
-                 unlist(dist1e4_file))
+                 unlist(dist1e4_file),
+                 unlist(thlist5_file),
+                 unlist(thlist10_file),
+                 unlist(thlist15_file))
 colnames(dfp) = c("p_name",
                   "hands_cnt",
                   "bankroll_file",
                   "dist1e2_file",
                   "dist1e3_file",
-                  "dist1e4_file")
-write_feather(dfp, "outcomes_and_bankrolls.feather")
+                  "dist1e4_file",
+                  "thlist5_file)",
+                  "thlist10_file)",
+                  "thlist15_file")
+write_feather(dfp, "outcomes_and_bankrolls_and_tophands.feather")
 ```
 
 ## Legea lui Benford
