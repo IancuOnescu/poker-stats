@@ -59,9 +59,6 @@ pstat = player_hands_stats(pfreq)
 
 fpfreq = filter(pfreq, hands >= 10000)
 
-#pdata = filter(data, p_name == "lurker")
-#plot_bankroll(pdata)
-
 p_name = list()
 hands_cnt = list()
 bankroll_file = list()
@@ -71,6 +68,7 @@ dist1e4_file = list()
 pthlist5_file = list()
 pthlist10_file = list()
 pthlist15_file = list()
+ror_file = list()
 
 plot_distr_and_store = function (i, hands) {
   plot_player_distr(pdata, as.character(fpfreq$p_name[i]), hands,
@@ -104,6 +102,7 @@ for (i in 1:50) {
   pthlist5 = plot_top_hands_and_store(i, 5)
   pthlist10 = plot_top_hands_and_store(i, 10)
   pthlist15 = plot_top_hands_and_store(i, 15)
+  rordf = table_RoR(pdata, as.character(pfreq$p_name[i]))
   
   p_name = append(p_name, as.character(fpfreq$p_name[i]))
   hands_cnt = append(hands_cnt, length(pdata$timestamp))
@@ -136,6 +135,10 @@ for (i in 1:50) {
   saveRDS(pthlist15, f)
   thlist15_file = append(pthlist15_file, f)
   
+  f = sprintf("risk_of_ruin_%s.rds", fpfreq$p_name[i])
+  saveRDS(rordf, f)
+  tror_file = append(ror_file, f)
+  
   toc()
   gc()
 }
@@ -148,7 +151,8 @@ dfp = data.frame(unlist(p_name),
                  unlist(dist1e4_file),
                  unlist(thlist5_file),
                  unlist(thlist10_file),
-                 unlist(thlist15_file))
+                 unlist(thlist15_file),
+                 unlist(tror_file))
 colnames(dfp) = c("p_name",
                   "hands_cnt",
                   "bankroll_file",
@@ -157,7 +161,8 @@ colnames(dfp) = c("p_name",
                   "dist1e4_file",
                   "thlist5_file)",
                   "thlist10_file)",
-                  "thlist15_file")
+                  "thlist15_file",
+                  "tror_file")
 write_feather(dfp, "outcomes_and_bankrolls_and_tophands.feather")
 ```
 

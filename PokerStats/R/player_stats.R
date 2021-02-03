@@ -18,6 +18,11 @@ sample_hands = function(obs, count){
               na.rm = TRUE))
 }
 
+calculate_GRoR = function (hands, bankroll) {
+  val = -2 * mean(hands) * bankroll / var(hands)
+  return (exp(val))
+}
+
 filter_handset = function(pcards, filter_suited){
   local = vector()
   for(i in seq(1, length(pcards)/4, by=4)){
@@ -109,4 +114,48 @@ plot_top_hands = function(pdata, player, n_hands) {
 
   hands = rbind(suited_hands.df, offsuit_hands.df)
   piechart_top_hands(hands, player, n_hands)
+}
+
+table_RoR = function(pdata, player) {
+  pprofit = get_net_profit(pdata)
+  pprofit = pprofit[!is.na(pprofit)]
+
+  no_trials = 10000
+  no_hands = 10000
+  broll = c(10, 100, 500, 1000, 3000, 5000, 10000, 25000, 100000)
+  sampled = replicate(no_trials, dqsample(pprofit, no_hands))
+  monte_carlo = vector()
+  gauss = vector()
+  diff = vector()
+  for(j in 1:length(broll)){
+    k=0
+    pror = 0
+    missed = 0
+    for (i in 1:no_trials) {
+      hands = c(broll[j], sampled[i,])
+      tot = cumsum(hands)
+      if (any(tot <= 0)) {
+        k=k+1
+      }
+      prorTemp = calculate_GRoR(sampled[i,], broll[j])
+      if(prorTemp >= 1){#excludem cazurile cand media este negativa pentru ca atunci P(bankroll = 0) = 1
+        missed = missed + 1
+      }
+      else{
+        pror = pror + prorTemp
+      }
+    }
+
+    monte_carlo = c(monte_carlo, round(k / no_trials, 4))
+    gauss = c(gauss, round(pror / (no_trials - missed), 4))
+    diff = c(diff, abs(round(k / no_trials - pror / (no_trials - missed), 4)))
+  }
+
+  df = data.frame(
+    "Bankroll size" = broll,
+    "Simulated RoR" = monte_carlo,
+    "Gaussian RoR" = gauss,
+    "difference" = diff
+  )
+  return(df)
 }

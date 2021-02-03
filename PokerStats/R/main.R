@@ -11,6 +11,7 @@ library(dqrng)
 library(anytime)
 library(ggplot2)
 library(plotrix)
+library(gridExtra)
 
 # Helpers
 factor_to_int = function (x) { as.numeric(as.character(x)) }
