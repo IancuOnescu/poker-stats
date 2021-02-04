@@ -1,226 +1,45 @@
 ---
-title: "Raport"
+title: "Titlu smecheros"
+author:
+    - Adrian Adam
+    - Iancu Onescu
+    - Mihail Feraru
 output: pdf_document
+date: "`r format(Sys.time(), '%d %B %Y')`"
+abstract: |
+    Scurta descriere.
+referinte:
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-**TODO:** Chestia asta o sa trebuiasca scrisa cat de cat formal banuiesc
+## Introducere
+* ce am analizat, de ce, in mare cum
 
-## Procesare dataset
-Dataset-ul initial contine 10 milioane de maini din jocuri de poker in format text. Pentru convenienta am transformat toate fisierele in format `feather` aplicand urmatorii pasi:
-
-* `decompress.py` contine codul pentru dezarhivarea fisierelor
-* `parse.py` contine codul pentru transformarea din text in CSV
-* Creem structura directorului de iesire
-```bash
-find parsed_data -type d > dirs.txt
-sed -i 's/parsed_data/dataframes/g' dirs.txt
-xargs mkdir -p < dirs.txt
-rm -f dirs.txt
-```
-* Pentru transformarea din CSV in Feather am utilizat urmatorul cod R din pachetul nostru `PokerStats`:
-```{r eval=FALSE}
-library(PokerStats)
-convert_all_csvs_to_feather("./parsed_data")
-```
-
-* Creem un singur fisier doar pentru castiguri pentru a evita procesari multiple inutile:
-```{r eval=FALSE}
-library(PokerStats)
-library(feather)
-library(tictoc)
-
-tic("Compile all datasets into one")
-pdbs = load_pdbs("./dataframes")
-data = rbindlist(pdbs)
-write_feather(data, "./dataframes/all_hands.feather")
-toc()
-
-rm(pdbs)
-rm(data)
-gc()
-```
-
-## Repartitie castiguri (draft)
-
-```{r eval=TRUE, cache=TRUE}
-library(PokerStats)
-library(feather)
-library(tictoc)
-library(dplyr)
-
-data = read_feather("./dataframes/all_hands.feather")
-plist = players_list(data)
-pfreq = player_hands_freq(data)
-pstat = player_hands_stats(pfreq)
-
-fpfreq = filter(pfreq, hands >= 10000)
-
-p_name = list()
-hands_cnt = list()
-bankroll_file = list()
-dist1e2_file = list()
-dist1e3_file = list()
-dist1e4_file = list()
-pthlist5_file = list()
-pthlist10_file = list()
-pthlist15_file = list()
-ror_file = list()
-
-plot_distr_and_store = function (i, hands) {
-  plot_player_distr(pdata, as.character(fpfreq$p_name[i]), hands,
-                    prefiltered = TRUE)
-  phist = recordPlot()
-  plot.new()
-  return (phist)
-}
-
-plot_bankroll_and_store = function(i) {
-  plot_bankroll(pdata, as.character(pfreq$p_name[i]))
-  pbank = recordPlot()
-  plot.new()
-  return (pbank)
-}
-
-plot_top_hands_and_store = function(i, hands) {
-  plot_top_hands(pdata, as.character(pfreq$p_name[i]), hands)
-  pthlist = recordPlot()
-  plot.new()
-  return (pthlist)
-}
-
-for (i in 1:50) {
-  tic(sprintf("Evaluate player %d", i))
-  pdata = filter(data, p_name == fpfreq$p_name[i])
-  phist1e2 = plot_distr_and_store(i, 1e2)
-  phist1e3 = plot_distr_and_store(i, 1e3)
-  phist1e4 = plot_distr_and_store(i, 1e4)
-  pbank = plot_bankroll_and_store(i)
-  pthlist5 = plot_top_hands_and_store(i, 5)
-  pthlist10 = plot_top_hands_and_store(i, 10)
-  pthlist15 = plot_top_hands_and_store(i, 15)
-  rordf = table_RoR(pdata, as.character(pfreq$p_name[i]))
-  
-  p_name = append(p_name, as.character(fpfreq$p_name[i]))
-  hands_cnt = append(hands_cnt, length(pdata$timestamp))
-  
-  f = sprintf("bankroll_%s.rds", fpfreq$p_name[i])
-  saveRDS(pbank, f)
-  bankroll_file = append(bankroll_file, f)
-  
-  f = sprintf("distr_1e2_%s.rds", fpfreq$p_name[i])
-  saveRDS(phist1e2, f)
-  dist1e2_file = append(dist1e2_file, f)
-  
-  f = sprintf("distr_1e3_%s.rds", fpfreq$p_name[i])
-  saveRDS(phist1e3, f)
-  dist1e3_file = append(dist1e3_file, f)
-  
-  f = sprintf("distr_1e4_%s.rds", fpfreq$p_name[i])
-  saveRDS(phist1e4, f)
-  dist1e4_file = append(dist1e4_file, f)
-  
-  f = sprintf("top_hands_5_%s.rds", fpfreq$p_name[i])
-  saveRDS(pthlist5, f)
-  thlist5_file = append(pthlist5_file, f)
-  
-  f = sprintf("top_hands_10_%s.rds", fpfreq$p_name[i])
-  saveRDS(pthlist10, f)
-  thlist10_file = append(pthlist10_file, f)
-  
-  f = sprintf("top_hands_15_%s.rds", fpfreq$p_name[i])
-  saveRDS(pthlist15, f)
-  thlist15_file = append(pthlist15_file, f)
-  
-  f = sprintf("risk_of_ruin_%s.rds", fpfreq$p_name[i])
-  saveRDS(rordf, f)
-  tror_file = append(ror_file, f)
-  
-  toc()
-  gc()
-}
-
-dfp = data.frame(unlist(p_name), 
-                 unlist(hands_cnt), 
-                 unlist(bankroll_file),
-                 unlist(dist1e2_file),
-                 unlist(dist1e3_file),
-                 unlist(dist1e4_file),
-                 unlist(thlist5_file),
-                 unlist(thlist10_file),
-                 unlist(thlist15_file),
-                 unlist(tror_file))
-colnames(dfp) = c("p_name",
-                  "hands_cnt",
-                  "bankroll_file",
-                  "dist1e2_file",
-                  "dist1e3_file",
-                  "dist1e4_file",
-                  "thlist5_file)",
-                  "thlist10_file)",
-                  "thlist15_file",
-                  "tror_file")
-write_feather(dfp, "outcomes_and_bankrolls_and_tophands.feather")
-```
+## Dataset-ul utilizat
+* explicare structura dataset
+* explicare procesare date in mod eficient
 
 ## Legea lui Benford
+* explicare distributie benford, benford second order, chi-squared
+* consecinte
 
-```{r eval=FALSE}
-library(benford.analysis)
-library(tictoc)
+## Castiguri
+* explicare sampling, teorema limita centrala, normalitate, legatura cu bankrolls nete
+* consecinte
 
-var_name = list()
-digits = list()
-filename = list()
+## Sansa de ruina
+* explicare formula, simulare
+* legatura cu distributia castigurilor
+* consecinte
 
-j = 1
-for (i in 1:3) {
-  tic(paste("Benford pot size - digits", i))
-  bf1 = benford(factor_to_int(data$p_pot_sz), number.of.digits = i)
-  bf1$data = NULL
-  fname = paste("pot_size_", j, ".rds", sep = "")
-  saveRDS(bf1, file = fname)
-  gc()
-  toc()
-  var_name = append(var_name, "pot_size")
-  digits = append(digits, i)
-  filename = append(filename, fname)
-  j=j+1
-  
-  tic(paste("Benford bankroll - digits", i))
-  bf2 = benford(factor_to_int(data$p_bankroll), number.of.digits = i)
-  bf2$data = NULL
-  fname = paste("bankroll_", j, ".rds", sep = "")
-  saveRDS(bf2, file = fname)
-  gc()
-  toc()
-  var_name = append(var_name, "bankroll")
-  digits = append(digits, i)
-  filename = append(filename, fname)
-  j=j+1
-  
-  tic(paste("Benford win - digits", i))
-  bf3 = benford(factor_to_int(data$win), number.of.digits = i)
-  bf3$data = NULL
-  fname = paste("win_", j, ".rds", sep = "")
-  saveRDS(bf3, file = fname)
-  gc()
-  toc()
-  var_name = append(var_name, "win_")
-  digits = append(digits, i)
-  filename = append(filename, fname)
-  j=j+1
-}
-dfbf = data.frame(unlist(var_name), unlist(digits), unlist(filename))
-colnames(dfbf) = c("var_name", "digits", "filename")
-write_feather(dfbf, "benford_index.feather")
+## Maini castigatoare
+* uniform distributie pentru toti jucatorii
 
-data = readRDS("./dataframes/benford/pot_size_1.rds")
+## Concluzii
+* bullshit
 
-rm(bf1); rm(bf2); rm(bf3);
-rm(dfbf); rm(digits); rm(filename); rm(var_name);
-gc()
-```
+## Referinte
+Ca sa o dam bine rau
