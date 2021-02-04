@@ -7,7 +7,7 @@ library(tidyverse)
 library(ggplot2)
 
 ## Setam doar local
-#  setwd("E:/..FMI-UniBuc/2nd/S1/PS/tutorials/PokerStatsApp")
+#  setwd("path/to/PokerStatsApp")
 
 
 benfIndex <- read_feather("data/benford/benford_index.feather")
