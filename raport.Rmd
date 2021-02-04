@@ -8,7 +8,7 @@ output: pdf_document
 date: "`r format(Sys.time(), '%d %B %Y')`"
 abstract: |
     Scurta descriere.
-referinte:
+references:
 ---
 
 ```{r setup, include=FALSE}
