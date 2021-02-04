@@ -148,18 +148,117 @@ gc()
 Se observa atat grafic, cat si din testul statistic Chi-Square ca datale analizate sunt repartizate Benford.
 
 ## Castiguri
-* explicare sampling, teorema limita centrala, normalitate, legatura cu bankrolls nete
-* consecinte
+Acum ca am incheiat cu prezentarea si validarea datelor vom trece la obiectul principal al acestui proiect si anume analiza.
+Ideea centrala a fost sa vedem daca distributia castigurilor unui jucator poate fi aproximata cu o curba gaussiana. In perioada curenta aceasta distributie starneste cel mai mare grad de atentie datoria proprietatilor ei. In sine, distributia probabilitatilor meciurilor de poker este discreta, nu continua. Insa `Teorema de limita centrala` ne spune ca folosind suficient de multe maini in final vom ajunge la rezultatul dorit.
+
+Ne intereseaza sa vedem care este numarul de maini de la care media tinde catre cea normala si in final cat de aproape reusim sa ajungem de curba, pentru a aproxima si suma necesara sa mentinem aceasta distributie eleganta a castigurilor.
+
+Din datasetul pentru fiecare jucator(mainile acestuia) alegem un numar de maini (100, 1.000 sau 10.000) insumand toate rezultatele. Alegem praguri atat de diferite pentru a putea observa mai usor modalitatea de convergenta. Facem asta pentru 100.000 de "pachete" de sample-uri si plotam rezultatele obtinute.
+
+```{r eval = TRUE, cache = TRUE}
+library(PokerStats)
+library(feather)
+library(gridExtra)
+
+data = read_feather("./dataframes/all_hands.feather")
+pfreq = player_hands_freq(data)
+fpfreq = filter(pfreq, hands >= 10000)
+pstats = player_hands_stats(pfreq)
+
+for(i in 2:5){
+  pdata = filter(data, p_name == fpfreq$p_name[i])
+  name = as.character(fpfreq$p_name[i])
+  plot_player_distr(pdata, name, 10, prefiltered = TRUE)
+  plot_player_distr(pdata, name, 100, prefiltered = TRUE) 
+  plot_player_distr(pdata, name, 1000, prefiltered = TRUE) 
+}
+```
+
+Asa cum ne asteptam, pentru 10 maini nu suntem nici macar aproape, majoritatea *greutatatii* aflandu-se in punctul 0.
+
+Pentru aproape toti jucatorilor deja de la pragul de 1000 de maini se poate vedea cum castigurile se apropie semnificativ de normala, iar de la pragul de 10.000 nu mai avem niciun dubiu. Observam si extremitatile mai accentuate ale graficelor, lucru care era de asteptat avand in vedere tendintele din jocul de poker. Jucatorii care se afla in posesia sumelor foarte mari tind sa parieze tot pentru a initimida sau chiar elimina un adversar. Pierderile de sume mari arata lipsa inspiratiei sau a norocului.
+
+Pentru curiozitatea cititorului lasam mai jos cateva grafice cu castigurile jucatorilor analizati mai sus. Concluziile sunt lasate la latitudinea acestuia.
+
+```{r eval = TRUE, cache = TRUE}
+library(PokerStats)
+library(feather)
+library(gridExtra)
+
+data = read_feather("./dataframes/all_hands.feather")
+pfreq = player_hands_freq(data)
+fpfreq = filter(pfreq, hands >= 10000)
+pstats = player_hands_stats(pfreq)
+
+for(i in 2:5){
+  pdata = filter(data, p_name == fpfreq$p_name[i])
+  name = as.character(fpfreq$p_name[i])
+  plot_bankroll(pdata, name)
+}
+```
 
 ## Sansa de ruina
-* explicare formula, simulare
-* legatura cu distributia castigurilor
-* consecinte
+Asa cum am observat distributia castigurilor converge catre o distributie normala, cu mici exceptii pentru cativa jucatori. Datele au fost analizate pentru jucatorii consistenti cu un numar ridicat de maini jucate. Dar pentru a juca un numar mare de maini inraitii trebuie sa evite falimentul.
+
+Asadar, am urmarit sa analizam si riscul ca un jucator sa ajunga falit, impiedicandu-l astfel sa isi proiecteze castigurile cu ajutorul curbei gaussiene. Desi mainile de poker nu urmeaza intocmai distributia normala, se apropie destul, cat sa putem folosi formula renumita propusa de Chen si Ankenman in cartea `The Mathematics of Poker` si anume:
+$$
+P(B = 0) = exp \Bigg(\frac{-2 \mu B} {\sigma ^ 2} \Bigg)
+$$
+Pentru a testa validitatea acestei formule pentru setul nostru de date am realizat aprox 10.000 de simluari Monte-Carlo per suma initiala si am facut diferenta.
+
+*Rezultatele au fost surprinzatoare:*
+Pe masura ce dimenesiunea bankroll-ului creste, creste si diferenta intre rezulate, care pentru sume mai mici era aproape nesemnificativa.
+
+```{r eval = TRUE, cache = TRUE}
+library(PokerStats)
+library(feather)
+library(gridExtra)
+
+data = read_feather("./dataframes/all_hands.feather")
+pfreq = player_hands_freq(data)
+fpfreq = filter(pfreq, hands >= 10000)
+pstats = player_hands_stats(pfreq)
+
+for(i in 5:10){
+  pdata = filter(data, p_name == fpfreq$p_name[i])
+  df = table_RoR(pdata, as.character(fpfreq$p_name))
+  grid.table(df)
+}
+gc()
+```
+
+O posibila explicatie ar fi ca formula propusa in carte presupune ca jucatorul joaca o infinitate de maini, sau cel putin pana cand pierde toti banii.
+O a doua presupunere este ca suma se modifica doar pentru mainile jucate, daca este cazul, adica jucatorii nu pot extrage bani. Dar aceasta a doua proprietate a fost verificata. 
+Asadar ramanem cu faptul ca jocurile reale de poker sunt limitate, deci drumul Gaussian va converge la zero mai repede, rezultand o probabilitate mai mare. Este posibilul si reversul, caci graficele arata o pondere mai mare catre extremele graficului, de unde simularile ar putea avea de suferit, desi nu a fost cazul in testele noastre.
 
 ## Maini castigatoare
-* uniform distributie pentru toti jucatorii
+Din perspectiva mainilor castigatoare ne-a interesat sa vedem daca jucatorii profita la maxim de cartile bune si daca au "maini preferate". Rezulatele au fost destul de previzibile.
+
+```{r eval = TRUE, cache = TRUE}
+library(PokerStats)
+library(feather)
+library(gridExtra)
+
+data = read_feather("./dataframes/all_hands.feather")
+pfreq = player_hands_freq(data)
+fpfreq = filter(pfreq, hands >= 10000)
+pstats = player_hands_stats(pfreq)
+
+for(i in 5:10){
+  pdata = filter(data, p_name == fpfreq$p_name[i])
+  plot_top_hands(pdata, as.character(fpfreq$p_name), 5)
+}
+gc()
+```
+
+In majoriatea topurilor se afla perechile cele mai puternice (AA, KK) si in general combinatii de A cu un kicker puternic (Q, J, 10, 9). Ceea ce a fost surprinzator este ca majoriatea acestor combinatii care s-au dovedit castigatoare au avut carti cu simbol diferit, reducand sansa jucatorilor sa obtina o chinta. 
+Nu se pot observa "maini preferate" in particular, semn ca jucatorii adopta o tactica care sa maximizeze EV-ul. Este probabil si un motiv bun pentru care acestia au reusit sa joace nu numar atat de mare de maini, in jocul de poker flexibilitatea situationala face diferenta.
+Putem spune ca cei care reusesc sa converteasca un avantaj statistic in bani sunt cei care vor fi in joc cea mai lunga perioada de timp.
 
 ## Concluzii
-* bullshit
+Per total proiectul a reprezentat o sansa foarte buna de a ne obisnui cu sintaxa limbajului si cu elementele referitoare la probabilitati si statistica.
+Dataset-ul pe care l-am gasit s-a dovedit a fi mai mult decat satisfcator, dupa ce am reusit sa il aducem intr-un format usor de prelucrat si cu viteza mai mare de incarcare.
+
 
 ## Referinte
+*in afara de carte, articol si site-ul de unde am luat datasetul ce referinte mai avem?
