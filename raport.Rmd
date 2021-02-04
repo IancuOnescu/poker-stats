@@ -7,8 +7,20 @@ author:
 output: pdf_document
 date: "`r format(Sys.time(), '%d %B %Y')`"
 abstract: |
-    Scurta descriere.
+    O scurta analiza a rezultatelor mainilor de poker urmarind cat de mult se apropie
+    de o distributie Gaussiana, respectiv influenta asupra planificarii bugetului si
+    evaluarii performantei jucatorilor.
 references:
+    - id: mikestein2011
+      title: How far from Gaussian (normal) are poker results 
+      author:
+          - family: Stein
+            given: Mike
+      URL: http://www.quantitativepoker.com/2011/02/how-far-from-gaussian-normal-are-poker.html
+      type: article-journal
+      issued:
+        year: 2011
+        month: 2
 ---
 
 ```{r setup, include=FALSE}
@@ -16,15 +28,91 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Introducere
-* ce am analizat, de ce, in mare cum
+Jocul de poker se afla intr-un punct controversat intre sansa si strategie, astfel pentru o analiza
+consistenta asupra propriei performante, un jucator are nevoie de procedee matematice concrete
+de evaluare. 
+
+In articolul lui Mike Stein, *How far from Gaussian (normal) are poker results?*, acesta
+isi propune sa determine cat de departe sunt propriile sale rezultate fata de o distributie Gaussiana
+si cum poate folosi acest fapt pentru planificarea bugetara reducand riscul de "ruina".
+In vederea generalizarii observatiilor, am decis sa extidem analiza la un set de date mai cuprinzator
+cu jucatori de aptitudini variate pe o perioada mult mai lunga de timp. De asemenea vom utiliza si
+alte procedee statistice pentru o mai buna intelegere a datelor.
 
 ## Dataset-ul utilizat
-* explicare structura dataset
-* explicare procesare date in mod eficient
+Ca baza pentru analiza noastra am folosit 10 milioane de maini de poker inregistrate 
+intre 1995 si 2001 pe mai multe canale de IRC dedicate jocului. Jucatorii sunt in general
+*computer geeks* ai anilor 90, studenti, matematicieni sau roboti, iar pariurile nu au fost
+realizate cu bani reali. Ne-am concentrat doar asupra variantei Texas Hold'em excluzand 
+turneele.
+
+Dataset-ul este organizat pe luni calendaristice si mese de joc (canale de IRC), datele fiind
+stocate in format text. De exemplu `data/holdem1/199601` reprezinta jocurile inregistrate pe canalul
+`#holdem1` in Ianuarie 1996. Fiecare astfel de folder contine:
+
+* `hroster` - jucatorii prezenti la fiecare mana
+* `hdb` - pariurile in fiecare etapa a jocului si cartile de pe masa
+* `pdb/<nume>.pdb` - mainile jucate de `<nume>`, actiunile, cartile si pariurile sale
+
+Procesarea datelor in format text este lenta si complicata in lipsa unui format standard, asa ca
+am utilizat o serie de script-uri in Python, Bash si R pentru a le converti in formatul Feather, dupa
+cum urmeaza:
+
+* `decompress.py` si `parse.py` decompreseaza si transforma datele in format CSV
+* Urmatorul script Bash creeaza un director de iesire cu structura corecta:
+```bash
+find parsed_data -type d > dirs.txt
+sed -i 's/parsed_data/dataframes/g' dirs.txt
+xargs mkdir -p < dirs.txt
+rm -f dirs.txt
+```
+* Transformare din CSV in Feather in maniera paralelizata:
+```r
+convert_all_csvs_to_feather = function (
+  path,
+  INPUT_DIR_NAME  = "parsed_data",
+  OUTPUT_DIR_NAME = "dataframes"
+) {
+  csvs = list.files(path, pattern = "*.csv",
+                    recursive = TRUE, full.names = TRUE)
+
+  cl = makeForkCluster()
+  pblapply(csvs, function(name) {
+    df = read.csv(name)
+
+    outname = gsub(INPUT_DIR_NAME, OUTPUT_DIR_NAME, name)
+    outname = gsub("\\.csv", ".feather", outname)
+    write_feather(df, outname)
+    return ()
+  }, cl = cl)
+  stopCluster(cl)
+}
+```
+
+Majoritatea mainilor au fost jucate de un set relativ mic de jucatori (sub 10%), astfel in analizele
+ulterioara ne vom concentra in special pe primii 50 de jucatori ca activitate.
+TODO: de adaugat statisticile despre maini si frecvente
 
 ## Legea lui Benford
-* explicare distributie benford, benford second order, chi-squared
-* consecinte
+Pentru a ne asigura ca datele nu au fost alterate in timpul colecatarii sau in procesarile ulterioare
+am considerat relevant sa verificam daca variabile precum pariurile, castigurile si soldurile jucatorilor
+respecta o distributie Benford.
+
+O observatie interesanta este ca o buna parte din cei mai activi jucatori este reprezentata de roboti (4/10 in top 10), insa comportamentul acestora nu se abate de la Legea lui Benford.
+
+```{r eval=F, cache=TRUE}
+library(PokerStats)
+library(feather)
+library(benford.analysis)
+
+data = read_feather("./dataframes/all_hands.feather")
+
+plot(benford(factor_to_int(data$p_pot_sz), number.of.digits = 1))
+plot(benford(factor_to_int(data$p_bankroll), number.of.digits = 1))
+plot(benford(factor_to_int(data$win), number.of.digits = 1))
+```
+
+TODO: blah blah despre Chi-Square si convergenta
 
 ## Castiguri
 * explicare sampling, teorema limita centrala, normalitate, legatura cu bankrolls nete
