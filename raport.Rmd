@@ -25,6 +25,16 @@ references:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(pbapply)
+library(parallel)
+library(feather)
+library(data.table)
+library(dplyr)
+library(dqrng)
+library(anytime)
+library(ggplot2)
+library(plotrix)
+library(gridExtra)
 ```
 
 ## Introducere
@@ -91,7 +101,23 @@ convert_all_csvs_to_feather = function (
 
 Majoritatea mainilor au fost jucate de un set relativ mic de jucatori (sub 10%), astfel in analizele
 ulterioara ne vom concentra in special pe primii 50 de jucatori ca activitate.
-TODO: de adaugat statisticile despre maini si frecvente
+
+```{r eval=T, cache=TRUE}
+library(PokerStats)
+library(feather)
+
+data = read_feather("./dataframes/all_hands.feather")
+pfreq = player_hands_freq(data)
+pstats = player_hands_stats(pfreq)
+
+# Cuantile jucatori/maini jucate
+print (pstats$quantiles)
+print (paste("Media nr. de maini jucate:", pstats$mean))
+```
+```{r, include=FALSE}
+rm(pstats)
+gc()
+```
 
 ## Legea lui Benford
 Pentru a ne asigura ca datele nu au fost alterate in timpul colecatarii sau in procesarile ulterioare
@@ -100,19 +126,26 @@ respecta o distributie Benford.
 
 O observatie interesanta este ca o buna parte din cei mai activi jucatori este reprezentata de roboti (4/10 in top 10), insa comportamentul acestora nu se abate de la Legea lui Benford.
 
-```{r eval=F, cache=TRUE}
+```{r eval=TRUE, cache=TRUE}
 library(PokerStats)
 library(feather)
 library(benford.analysis)
 
-data = read_feather("./dataframes/all_hands.feather")
+bf1 = benford(factor_to_int(data$p_pot_sz), number.of.digits = 1)
+bf2 = benford(factor_to_int(data$p_bankroll), number.of.digits = 1)
+bf3 = benford(factor_to_int(data$win), number.of.digits = 1)
 
-plot(benford(factor_to_int(data$p_pot_sz), number.of.digits = 1))
-plot(benford(factor_to_int(data$p_bankroll), number.of.digits = 1))
-plot(benford(factor_to_int(data$win), number.of.digits = 1))
+plot(bf1); print(chisq(bf1))
+plot(bf2); print(chisq(bf2))
+plot(bf3); print(chisq(bf3))
 ```
 
-TODO: blah blah despre Chi-Square si convergenta
+```{r, include=FALSE}
+rm(bf1); rm(bf2); rm(bf3)
+gc()
+```
+
+Se observa atat grafic, cat si din testul statistic Chi-Square ca datale analizate sunt repartizate Benford.
 
 ## Castiguri
 * explicare sampling, teorema limita centrala, normalitate, legatura cu bankrolls nete
@@ -130,4 +163,3 @@ TODO: blah blah despre Chi-Square si convergenta
 * bullshit
 
 ## Referinte
-Ca sa o dam bine rau

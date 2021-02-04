@@ -18,6 +18,7 @@ player_hands_stats = function(freq = NULL, df = NULL) {
     median = median(freq$hands),
     variance = var(freq$hands),
     sd = sd(freq$hands),
-    quantiles = quantile(freq$hands, probs = c(0.1, 0.25, 0.5, 0.9, 0.95, 0.99))
+    quantiles = quantile(freq$hands,
+                         probs = c(0.1, 0.25, 0.5, 0.9, 0.95, 0.99))
   )
 }
