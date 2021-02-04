@@ -1,5 +1,5 @@
 ---
-title: "Titlu smecheros"
+title: "Analiza a castigurilor in jocul de Poker"
 author:
     - Adrian Adam
     - Iancu Onescu
@@ -21,10 +21,21 @@ references:
       issued:
         year: 2011
         month: 2
+    - id: mathpoker
+      title: The Mathematics of Poker
+      author:
+          - family: Chen
+            given: William
+      type: book
+      issued:
+        year: 2006
+        month: 11
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, dev = 'pdf',
+                      message = FALSE, warning = FALSE,
+                      fig.width = 6, fig.height = 4)
 library(pbapply)
 library(parallel)
 library(feather)
@@ -36,6 +47,10 @@ library(ggplot2)
 library(plotrix)
 library(gridExtra)
 ```
+
+Aplicatia interactiva cu intreaga analiza: https://seras3.shinyapps.io/PokerStatsApp/
+
+Cod sursa: https://github.com/IancuOnescu/poker-stats
 
 ## Introducere
 Jocul de poker se afla intr-un punct controversat intre sansa si strategie, astfel pentru o analiza
@@ -102,7 +117,7 @@ convert_all_csvs_to_feather = function (
 Majoritatea mainilor au fost jucate de un set relativ mic de jucatori (sub 10%), astfel in analizele
 ulterioara ne vom concentra in special pe primii 50 de jucatori ca activitate.
 
-```{r eval=T, cache=TRUE}
+```{r eval=T, cache=TRUE, warning=FALSE}
 library(PokerStats)
 library(feather)
 
@@ -126,18 +141,20 @@ respecta o distributie Benford.
 
 O observatie interesanta este ca o buna parte din cei mai activi jucatori este reprezentata de roboti (4/10 in top 10), insa comportamentul acestora nu se abate de la Legea lui Benford.
 
-```{r eval=TRUE, cache=TRUE}
-library(PokerStats)
-library(feather)
+```{r eval=TRUE, cache=TRUE,fig.width = 6, fig.height = 4}
 library(benford.analysis)
 
 bf1 = benford(factor_to_int(data$p_pot_sz), number.of.digits = 1)
 bf2 = benford(factor_to_int(data$p_bankroll), number.of.digits = 1)
 bf3 = benford(factor_to_int(data$win), number.of.digits = 1)
 
-plot(bf1); print(chisq(bf1))
-plot(bf2); print(chisq(bf2))
-plot(bf3); print(chisq(bf3))
+plotBf = function (bf) {
+  plot(bf) # , except = c("mantissa", "abs diff", "second order", "summation", "abs diff", "ex summation"), multiple = TRUE, cex=0.5
+}
+
+plotBf(bf1); print(chisq(bf1))
+plotBf(bf2); print(chisq(bf2))
+plotBf(bf3); print(chisq(bf3))
 ```
 
 ```{r, include=FALSE}
@@ -157,13 +174,8 @@ Din datasetul pentru fiecare jucator(mainile acestuia) alegem un numar de maini 
 
 ```{r eval = TRUE, cache = TRUE}
 library(PokerStats)
-library(feather)
-library(gridExtra)
 
-data = read_feather("./dataframes/all_hands.feather")
-pfreq = player_hands_freq(data)
-fpfreq = filter(pfreq, hands >= 10000)
-pstats = player_hands_stats(pfreq)
+fpfreq = filter(player_hands_freq(data), hands >= 10000)
 
 for(i in 2:5){
   pdata = filter(data, p_name == fpfreq$p_name[i])
@@ -182,13 +194,6 @@ Pentru curiozitatea cititorului lasam mai jos cateva grafice cu castigurile juca
 
 ```{r eval = TRUE, cache = TRUE}
 library(PokerStats)
-library(feather)
-library(gridExtra)
-
-data = read_feather("./dataframes/all_hands.feather")
-pfreq = player_hands_freq(data)
-fpfreq = filter(pfreq, hands >= 10000)
-pstats = player_hands_stats(pfreq)
 
 for(i in 2:5){
   pdata = filter(data, p_name == fpfreq$p_name[i])
@@ -202,7 +207,7 @@ Asa cum am observat distributia castigurilor converge catre o distributie normal
 
 Asadar, am urmarit sa analizam si riscul ca un jucator sa ajunga falit, impiedicandu-l astfel sa isi proiecteze castigurile cu ajutorul curbei gaussiene. Desi mainile de poker nu urmeaza intocmai distributia normala, se apropie destul, cat sa putem folosi formula renumita propusa de Chen si Ankenman in cartea `The Mathematics of Poker` si anume:
 $$
-P(B = 0) = exp \Bigg(\frac{-2 \mu B} {\sigma ^ 2} \Bigg)
+P(B = 0) = exp \Bigg(\frac{-2 \mu b} {\sigma ^ 2} \Bigg)
 $$
 Pentru a testa validitatea acestei formule pentru setul nostru de date am realizat aprox 10.000 de simluari Monte-Carlo per suma initiala si am facut diferenta.
 
@@ -211,20 +216,12 @@ Pe masura ce dimenesiunea bankroll-ului creste, creste si diferenta intre rezula
 
 ```{r eval = TRUE, cache = TRUE}
 library(PokerStats)
-library(feather)
-library(gridExtra)
-
-data = read_feather("./dataframes/all_hands.feather")
-pfreq = player_hands_freq(data)
-fpfreq = filter(pfreq, hands >= 10000)
-pstats = player_hands_stats(pfreq)
 
 for(i in 5:10){
   pdata = filter(data, p_name == fpfreq$p_name[i])
-  df = table_RoR(pdata, as.character(fpfreq$p_name))
+  df = table_RoR(pdata, as.character(fpfreq$p_name[i]))
   grid.table(df)
 }
-gc()
 ```
 
 O posibila explicatie ar fi ca formula propusa in carte presupune ca jucatorul joaca o infinitate de maini, sau cel putin pana cand pierde toti banii.
@@ -236,19 +233,11 @@ Din perspectiva mainilor castigatoare ne-a interesat sa vedem daca jucatorii pro
 
 ```{r eval = TRUE, cache = TRUE}
 library(PokerStats)
-library(feather)
-library(gridExtra)
-
-data = read_feather("./dataframes/all_hands.feather")
-pfreq = player_hands_freq(data)
-fpfreq = filter(pfreq, hands >= 10000)
-pstats = player_hands_stats(pfreq)
 
 for(i in 5:10){
   pdata = filter(data, p_name == fpfreq$p_name[i])
-  plot_top_hands(pdata, as.character(fpfreq$p_name), 5)
+  plot_top_hands(pdata, as.character(fpfreq$p_name[i]), 5)
 }
-gc()
 ```
 
 In majoriatea topurilor se afla perechile cele mai puternice (AA, KK) si in general combinatii de A cu un kicker puternic (Q, J, 10, 9). Ceea ce a fost surprinzator este ca majoriatea acestor combinatii care s-au dovedit castigatoare au avut carti cu simbol diferit, reducand sansa jucatorilor sa obtina o chinta. 
@@ -257,8 +246,15 @@ Putem spune ca cei care reusesc sa converteasca un avantaj statistic in bani sun
 
 ## Concluzii
 Per total proiectul a reprezentat o sansa foarte buna de a ne obisnui cu sintaxa limbajului si cu elementele referitoare la probabilitati si statistica.
+
 Dataset-ul pe care l-am gasit s-a dovedit a fi mai mult decat satisfcator, dupa ce am reusit sa il aducem intr-un format usor de prelucrat si cu viteza mai mare de incarcare.
 
+Contrar asteptarilor, in urma analizei datelor a numerosi jucatori am observat cum performantele acestora nu depind in proportii semnificative de calitatea cartilor dintr-o anumita partida. Balanta inclinata spre profit apartine jucatorilor cu o strategie dobandita in timp. Analiza are la baza o serie consistenta de date, motiv pentru care putem concluziona necesitatea unei strategii pentru o evolutie de succes in acest domeniu.
+
+\newpage
 
 ## Referinte
-*in afara de carte, articol si site-ul de unde am luat datasetul ce referinte mai avem?
+
+---
+nocite: '@*'
+...
