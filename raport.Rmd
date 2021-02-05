@@ -180,9 +180,9 @@ fpfreq = filter(player_hands_freq(data), hands >= 10000)
 for(i in 2:5){
   pdata = filter(data, p_name == fpfreq$p_name[i])
   name = as.character(fpfreq$p_name[i])
-  plot_player_distr(pdata, name, 10, prefiltered = TRUE)
-  plot_player_distr(pdata, name, 100, prefiltered = TRUE) 
+  plot_player_distr(pdata, name, 100, prefiltered = TRUE)
   plot_player_distr(pdata, name, 1000, prefiltered = TRUE) 
+  plot_player_distr(pdata, name, 10000, prefiltered = TRUE) 
 }
 ```
 
