@@ -1,10 +1,24 @@
+:root {
+  --primary: rgb(7, 26, 82);
+  --primary-02: rgb(7, 26, 82, 0.2);
+  --primary-tint: rgb(8, 105, 114);
+  --secondary: rgb(24, 194, 161);
+  --secondary-shade: rgb(24, 188, 156);
+  --font-size--lg: 2rem;
+  --avatar-size--lg: 150px;
+  --avatar-size--m: 100px;
+  --main-mg-top--lg: 4rem;
+  --main-mg-bot--lg: 1rem;
+  --logo-height: 3rem;
+}
+
 * {
   box-sizing: border-box;
 }
 
 .logo {
   margin-right: 1rem;
-  height: 3rem;
+  height: var(--logo-height);
 }
 
 .nav--titlebox {
@@ -13,6 +27,194 @@
 }
 
 .nav--title__font {
-  font-family: 'Russo One', sans-serif;
-  font-size: 2rem;
+  font-family: "Russo One", sans-serif;
+  font-size: var(--font-size--lg);
+}
+
+.background-container {
+  width: 100vw;
+  height: 100vh;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -100;
+  overflow: hidden;
+}
+
+.background--image {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  top: 0;
+  left: 0;
+  background-image: url("../images/background.gif");
+  background-position: center;
+  background-size: cover;
+  filter: blur(2px) brightness(0.5);
+  transform: scale(1.1);
+}
+
+.title {
+  margin: 0;
+  font-size: 5rem;
+  font-family: "Play", sans-serif;
+  padding-top: 5vh;
+}
+
+.text__col-white {
+  color: white;
+}
+
+.text__al-center {
+  text-align: center;
+}
+
+.main-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  margin-right: auto;
+  margin-left: auto;
+  width: 80%;
+  border-top: 3px solid var(--secondary);
+  padding: 10px;
+  margin-top: var(--main-mg-top--lg);
+  margin-bottom: var(--main-mg-bot--lg);
+  border-radius: 20px;
+  background-color: var(--primary-02);
+  overflow: auto;
+}
+
+.main--description {
+  font-size: var(--font-size--lg);
+  margin-top: 7rem;
+}
+
+.team-intro {
+  font-size: var(--font-size--lg);
+  font-family: "Russo One", sans-serif;
+  margin-bottom: 2rem;
+}
+
+.cardboard-container {
+  display: flex;
+  margin: auto;
+  width: 90%;
+  padding-bottom: 3rem;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.card--image-shape {
+  border-radius: 50%;
+  max-height: 80%;
+  width: var(--avatar-size--lg);
+  height: var(--avatar-size--lg);
+  overflow: hidden;
+  border-bottom: 4px solid var(--secondary);
+}
+
+.image-shape--image {
+  width: inherit;
+  height: inherit;
+}
+
+.card--body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  height: 20%;
+}
+
+.link {
+  text-decoration: none !important;
+}
+
+.link::before {
+  content: url("../images/github-mark.png");
+  transform: scale(0.7);
+  display: inline-block;
+  position: relative;
+  top: 8px;
+}
+
+@media screen and (max-width: 768px) {
+  .title {
+    font-size: 4rem;
+  }
+
+  .main--description {
+    margin-top: 3rem;
+    margin-bottom: 3rem;
+  }
+
+  .cardboard-container {
+    flex-direction: column;
+  }
+
+  .card {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .card:not(:last-child) {
+    margin-bottom: 3rem;
+  }
+
+  .card--image-shape {
+    width: var(--avatar-size--m);
+    height: var(--avatar-size--m);
+  }
+
+  .card--body {
+    width: 40%;
+    height: 100%;
+  }
+}
+
+@media screen and (max-width: 375px) {
+  .title {
+    font-size: 3rem;
+  }
+
+  .main--description {
+    margin-top: 2rem;
+  }
+
+  .card {
+    flex-direction: column;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 2px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 212, 255, 0) 30%,
+    rgba(133, 234, 255, 1) 40%,
+    rgba(31, 191, 223, 0) 30%
+  );
+
+  border-top-right-radius: 20px;
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: rgb(79, 215, 219, 0.5);
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(48, 160, 212);
 }
